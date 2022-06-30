@@ -19,6 +19,17 @@ def get_hash_categories(categories):
     return hashed_categories
 
 
+def generate_random_question(questions):
+    return questions[random.randrange(0, len(questions), 1)]
+
+
+def has_question_been_used(previous_questions, question):
+    used = False
+    if question['id'] in previous_questions:
+        used = True
+        return used
+
+
 def paginate_questions(request, selection):
     page = request.args.get("page", 1, type=int)
     start = (page - 1) * QUESTIONS_PER_PAGE
@@ -233,42 +244,35 @@ def create_app(test_config=None):
     and shown whether they were correct or not.
     """
     @app.route('/quizzes', methods=['POST'])
-    def get_quiz_questions_randomly():
+    def get_random_quiz_questions():
         body = request.get_json()
 
+        # Extract quiz details and list of previous questions
         category = body.get('quiz_category', None)
         previous_questions = body.get('previous_questions', None)
 
-        # Get Questions based on whether category selected is 'ALL'
+        # Get questions if category selected is 'all'
         if category['id'] != 0:
             questions = Question.query.filter_by(
                 category=category['id']).all()
         else:
             questions = Question.query.all()
 
-        def get_random_question():
-            return questions[random.randrange(0, len(questions), 1)]
+        newly_generated_question = generate_random_question(questions)
 
-        def check_used(question):
-            used = False
-            if question['id'] in previous_questions:
-                used = True
-            return used
-
-        question = get_random_question()
-
-        # Keep getting a random question until an unused question is found
-        while (check_used(question.format())):
-            question = get_random_question()
+        # Repeat function to generate a random question until an unused question is found
+        while (has_question_been_used(previous_questions, newly_generated_question.format())):
+            newly_generated_question = generate_random_question()
 
             if (len(previous_questions) == len(questions)):
                 return jsonify({
                     'success': True,
+                    'message': "No more questions"
                 }), 200
 
         return jsonify({
             'success': True,
-            'question': question.format()
+            'question': newly_generated_question.format()
         })
 
     """
